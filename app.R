@@ -11,28 +11,38 @@
 
 
 # LIBRARIES ----
-library(ggplot2)  # containg d mpg dataset
+library(ggplot2)  # containing d mpg dataset
 library(esquisse)
 library(modeldata)
 library(shiny)
+library(rsconnect)
 
 # Datasets
 data("drinks")
 data("mpg")
 
-ui <- fluidPage(
-    
-    titlePanel("Use Esquisse as a Shiny module"),
+
+# U.I part
+ui <- navbarPage(title = h3("Use Esquisse as a Shiny module"),   # creates a menu with d stated title
+                 
+                 theme = bslib::bs_theme(version = 4, bootswatch = "minty"),
     
     sidebarLayout(   # creates a sidebar
         sidebarPanel(
             radioButtons(   # radioButtons() will create radio buttons for the parameters
                 inputId = "data",
-                label = "Data to use:",
+                label = h4("Data to use:"),
                 choices = c("drinks", "mpg"),
                 inline = TRUE
-            )
+            ),
+            
+        # using CSS to style d app
+            tags$style("body{background-color:linen; color:brown}"),
+            tags$style(".span12{font-style: oblique;border-style: solid}"),
+            tags$style(".span4{border-style: solid}"),
+            tags$style(".span8{border-style: solid}")
         ),
+        
         mainPanel(
             tabsetPanel(     # creates tab page column layout in d main tab(not in d menu) 
                 tabPanel(title = "esquisse",   # dis is 1st tab page  with d stated title
@@ -51,6 +61,7 @@ ui <- fluidPage(
 )
 
 
+# Server function part
 server <- function(input, output, session) {
     
     data_r <- reactiveValues(data = drinks, name = "drinks")  # using drinks dataset
