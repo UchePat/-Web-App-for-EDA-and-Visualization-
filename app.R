@@ -8,7 +8,7 @@ library(esquisse)
 library(modeldata)
 library(shiny)
 library(shinythemes)
-#library(rsconnect)
+library(rsconnect)
 
 # Datasets
 data("drinks")
