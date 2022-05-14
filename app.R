@@ -1,83 +1,113 @@
-#  Esquisse ggplot builder --- We build ggplot charts with drag-and-drop (just like in Tableau software) using esquisse package
-# Esquisse package is used to build all ggplot charts without writing a single ggplot code
+# Upload a dataset into the app, then using variables/columns in the dataset to create Scatterplot chart
 
-
-# LIBRARIES ----
-library(ggplot2)  # containing d mpg dataset
-library(esquisse)
-library(modeldata)
 library(shiny)
 library(shinythemes)
+library(datasets)
+library(scales)
+library(colorspace)
 library(rsconnect)
 
-# Datasets
-data("drinks")
-data("mpg")
 
-ui <- fluidPage(
+# U.I part
+ui <- fluidPage(theme=shinytheme("slate"),   # using slate shinytheme
     
-    theme=shinytheme("slate"),   # using slate shinytheme
+    titlePanel("Creating Plots from uploaded Dataset"),
     
-    # themeSelector(), ## displays the various themes options you can pick from
-    
-    navbarPage(
-        title ="Using Esquisse package for ggplot Visualization",
-        id ="nav",
-
-             sidebarLayout(   # creates a sidebar
-                     sidebarPanel(
-                         radioButtons(   # radioButtons() will create radio buttons for the parameters
-                             inputId = "data",
-                             label = "Select any Dataset:",
-                             choices = c("drinks", "mpg"),
-                             inline = TRUE
-                         ),
-                         
-                  ),
+    tabsetPanel(   # creates Tabs in the menu bar
+        
+        tabPanel("Upload File",    # 1st tab
+                 
+                 titlePanel("Import Your Dataset File"),
+                 
+                 sidebarLayout(
                      
+                     sidebarPanel(
+                         
+                         fileInput('file1', 'Choose CSV File',
+                                   accept = c('text/csv', 
+                                            'text/comma-separated-values,text/plain', 
+                                            '.csv')),
+                         
+                         tags$br(),
+                         
+                         checkboxInput('header', 'Header', TRUE),
+                         
+                         radioButtons('sep', 'Separator',
+                                      c(Comma = ',', Semicolon = ';', Tab = '\t'),
+                                      ','),
+                         
+                         radioButtons('quote', 'Quote',
+                                      c(None = '', 'Double Quote' = '"', 'Single Quote' = "'"),
+                                      '"')
+                         
+                     ),
                      mainPanel(
-                         tabsetPanel(     # creates tab page column layout in d main tab(not in d menu) 
-                             tabPanel(title = "esquisse",   # dis is 1st tab page  with d stated title
-                                      esquisserUI(
-                                          id = "esquisse",    # using esquisse ggplot builder package
-                                          header = FALSE, # dont display gadget title
-                                          choose_data = FALSE # dont display button to change data
-                                      )
-                             ),
-                             tabPanel(title = "output",       # dis is 2nd tab page with d stated title
-                                      verbatimTextOutput("module_out")  # dis object is created in Server function part
-                             )
-                         )
+                         tableOutput('contents')
                      )
                  )
+        ),
+        tabPanel("Create Your Chart",   # 2nd tab
+                 
+                 pageWithSidebar(
+                     
+                     headerPanel('My First Plot'),
+                     
+                     sidebarPanel(
+                         
+                         # Since it is scatterplot, we will create twoinput widgets
+                         # the inputs is empty and hidden and will be displayed/updated after the dataset is uploaded
+                         selectInput('xcol', 'X Variable', ""),
+                         selectInput('ycol', 'Y Variable', "", selected = "")
+                         
+                     ),
+                     mainPanel(
+                         plotOutput('MyPlot')
+                     )
+                 )
+        )
+        
     )
-)    
+)
 
 
-server <- function(input, output, session) {
+# Server Function
+server <- function(input, output, session) {  # added "session" because updateSelectInput requires it
     
-    data_r <- reactiveValues(data = drinks, name = "drinks")  # using drinks dataset
-    
-    observeEvent(input$data, {
-        if (input$data == "drinks") {
-            data_r$data <- drinks
-            data_r$name <- "drinks"
-        } else {
-            data_r$data <- mpg          # using mpg dataset
-            data_r$name <- "mpg"
-        }
+    data <- reactive({ 
+        req(input$file1) ## ?req #  require that the input is available
+        
+        inFile <- input$file1 
+        
+        
+        df <- read.csv(inFile$datapath, header = input$header, sep = input$sep,
+                       quote = input$quote)
+        
+        
+        # Update inputs (you could create an observer with both updateSel...)
+        # You can also constraint your choices. If you wanted select only numeric variables you could set "choices = sapply(df, is.numeric)"
+        
+        updateSelectInput(session, inputId = 'xcol', label = 'X Variable',
+                          choices = names(df), selected = names(df))
+        updateSelectInput(session, inputId = 'ycol', label = 'Y Variable',
+                          choices = names(df), selected = names(df)[2])
+        
+        return(df)
     })
     
-    result <- callModule(    # here we are displaying d code that creates d ggplot chart using Esquisse ggplot builder package
-        module = esquisserServer,
-        id = "esquisse",       
-        data = data_r
-    )
-    
-    output$module_out <- renderPrint({   # module_out object will be sent to U.I part
-        str(reactiveValuesToList(result))
+    output$contents <- renderTable({
+        data()
     })
     
+    output$MyPlot <- renderPlot({
+        
+        # Since we made two inputs, lets make a scatterplot
+        x <- data()[, c(input$xcol, input$ycol)]
+        
+        plot(x, font.lab = 2, col = alpha("green", 0.3), pch = 16)  # pch = 16, filled circle symbols. font.lab = 2 will make X and Y-axis labels bold
+        
+    })
 }
 
-shinyApp(ui, server)
+
+# Run the application 
+shinyApp(ui = ui, server = server)
